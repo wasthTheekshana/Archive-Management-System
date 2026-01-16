@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archive Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        body { background-color: #f4f7fa; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+        .navbar { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .brand-icon { background: #0d6efd; color: white; padding: 6px 10px; border-radius: 6px; margin-right: 10px; }
+
+        .card-custom {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            margin-bottom: 24px;
+            background: white;
+        }
+
+        /* Table Styling */
+        .table thead th {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .table td { vertical-align: middle; padding: 0.75rem 0.5rem; }
+
+        /* Badges */
+        .badge-soft-success { background-color: rgba(25, 135, 84, 0.1); color: #198754; padding: 6px 12px; border-radius: 20px;}
+        .badge-soft-warning { background-color: rgba(255, 193, 7, 0.15); color: #997404; padding: 6px 12px; border-radius: 20px;}
+
+        .work-area { background-color: #f8fbff; border: 1px solid #cce5ff; border-radius: 8px; padding: 15px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light sticky-top mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold d-flex align-items-center" href="#">
+            <span class="brand-icon"><i class="bi bi-archive-fill"></i></span> ArchiveManager
+        </a>
+        <div class="d-flex">
+            {% if is_admin %}
+                <span class="navbar-text me-3 d-none d-sm-block text-muted">Signed in as Admin</span>
+                <a href="/logout" class="btn btn-outline-danger btn-sm"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            {% else %}
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#loginModal">
+                    <i class="bi bi-person-lock"></i> Admin Login
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row">
+
+        <div class="col-lg-5 mb-4">
+
+            {% if is_admin %}
+            <div class="card card-custom">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted fw-bold small mb-3">
+                        <i class="bi bi-cloud-upload me-1"></i> Import Excel
+                    </h6>
+                    <div class="input-group">
+                        <input type="file" class="form-control" id="excelFile" accept=".xlsb, .xlsx">
+                        <button class="btn btn-primary" onclick="uploadData()">Upload</button>
+                    </div>
+                    <div id="uploadMsg" class="mt-2 small fw-bold"></div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card card-custom h-100">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold mb-4">Find & Assign</h5>
+
+                    <div class="input-group input-group-lg mb-3">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                        <input type="text" id="searchBox" class="form-control border-start-0" placeholder="Enter full or partial number...">
+                        <button class="btn btn-primary" onclick="searchAgreement()">Search</button>
+                    </div>
+                    <p class="text-muted small mb-4">Tip: Enter partial numbers like "46781" to find "LF/46781/..."</p>
+
+                    <div id="workArea" class="work-area d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <small class="text-muted d-block">Agreement Number</small>
+                                <strong id="td_ag" class="fs-5 text-primary text-break"></strong>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted d-block">Type</small>
+                                <span id="td_type" class="badge bg-secondary"></span>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="small text-muted mb-1">Box Name</label>
+                                <input type="text" id="inp_box" class="form-control bg-white" readonly>
+                            </div>
+                            <div class="col-6">
+                                <label class="small text-muted mb-1">DOK ID</label>
+                                <input type="text" id="inp_dok" class="form-control bg-white" readonly>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button id="btnAssign" class="btn btn-success" onclick="checkLimitAndAssign()">
+                                <i class="bi bi-box-seam me-2"></i>Assign to Box
+                            </button>
+                            <button id="btnSave" class="btn btn-primary d-none" onclick="saveToDb()">
+                                <i class="bi bi-save me-2"></i>Confirm & Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card card-custom">
+                <div class="card-header bg-white py-3 border-bottom-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">Recent Records</h5>
+                    <button class="btn btn-light btn-sm text-muted" onclick="loadPage(1)">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="liveTable">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Agreement</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                                <th>Box Info</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            </tbody>
+                    </table>
+                </div>
+
+                <div class="card-footer bg-white border-top-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small" id="pageInfo">Loading...</span>
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0" id="paginationControls"></ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="loginModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Login</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="logUser" class="form-control mb-2" placeholder="Username">
+                <input type="password" id="logPass" class="form-control mb-3" placeholder="Password">
+                <button class="btn btn-primary w-100" onclick="performLogin()">Sign In</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="limitModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center p-4">
+            <div class="mb-3 text-warning"><i class="bi bi-exclamation-circle" style="font-size: 3rem;"></i></div>
+            <h4 class="fw-bold mb-2" id="limitTitle">Box Attention</h4>
+            <p class="text-muted" id="limitMsg"></p>
+
+            <div class="bg-light p-3 rounded mb-3">
+                <small class="text-uppercase fw-bold text-muted">Next Box Sequence</small>
+                <div class="h2 text-primary fw-bold mb-0" id="nextBoxName"></div>
+            </div>
+
+            <input type="text" id="newDokInput" class="form-control form-control-lg text-center mb-3" placeholder="Scan/Type New DOK ID">
+            <button class="btn btn-primary w-100" onclick="confirmNewBox()">Create New Box</button>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    let currentData = {};
+    let currentPage = 1;
+
+    // --- 1. PAGINATION & LOAD LOGIC ---
+    function loadPage(page) {
+        currentPage = page;
+        fetch(`/api/documents?page=${page}`)
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById("tableBody");
+                tbody.innerHTML = "";
+
+                // Populate Table
+                data.data.forEach(row => {
+                    let statusBadge = row.status === 'Archived'
+                        ? '<span class="badge-soft-success">Archived</span>'
+                        : '<span class="badge-soft-warning">Pending</span>';
+
+                    let boxInfo = row.assigned_box_name ? `${row.assigned_box_name}` : '<span class="text-muted">-</span>';
+
+                    let html = `
+                        <tr>
+                            <td class="ps-4 fw-bold text-dark text-break" style="max-width: 150px;">${row.agreement_number}</td>
+                            <td class="small text-muted">${row.category || ''}</td>
+                            <td>${statusBadge}</td>
+                            <td class="small font-monospace">${boxInfo}</td>
+                        </tr>`;
+                    tbody.innerHTML += html;
+                });
+
+                // Populate Pagination Info
+                const pag = data.pagination;
+                document.getElementById('pageInfo').innerHTML =
+                    `Page <strong>${pag.current_page}</strong> of <strong>${pag.total_pages}</strong>`;
+
+                // Build Buttons
+                let pagHTML = '';
+                // Previous
+                pagHTML += `<li class="page-item ${!pag.has_prev ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="loadPage(${pag.current_page - 1})"><i class="bi bi-chevron-left"></i></a></li>`;
+                // Next
+                pagHTML += `<li class="page-item ${!pag.has_next ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="loadPage(${pag.current_page + 1})"><i class="bi bi-chevron-right"></i></a></li>`;
+
+                document.getElementById('paginationControls').innerHTML = pagHTML;
+            });
+    }
+
+    // Initial Load
+    document.addEventListener('DOMContentLoaded', () => loadPage(1));
+
+    // --- 2. SEARCH LOGIC (PARTIAL MATCH) ---
+    async function searchAgreement() {
+        let q = document.getElementById('searchBox').value.trim();
+        if(!q) return;
+
+        let res = await fetch(`/search?q=${q}`);
+        let data = await res.json();
+
+        if(data) {
+            currentData = data;
+
+            // Show Work Area
+            const area = document.getElementById('workArea');
+            area.classList.remove('d-none');
+
+            // Populate Data
+            document.getElementById('td_ag').innerText = data.agreement_number;
+            document.getElementById('td_type').innerText = data.box_type || 'GEN';
+
+            if(data.status === 'Archived') {
+                document.getElementById('inp_box').value = data.assigned_box_name;
+                document.getElementById('inp_dok').value = data.assigned_dok_id;
+
+                // Hide actions if already archived
+                document.getElementById('btnAssign').classList.add('d-none');
+                document.getElementById('btnSave').classList.add('d-none');
+            } else {
+                document.getElementById('inp_box').value = '';
+                document.getElementById('inp_dok').value = '';
+
+                // Show Assign Button
+                document.getElementById('btnAssign').classList.remove('d-none');
+                document.getElementById('btnSave').classList.add('d-none');
+            }
+        } else {
+            alert("No agreement found matching that number.");
+        }
+    }
+
+    // --- 3. UPLOAD LOGIC ---
+    async function uploadData() {
+        let fileInput = document.getElementById('excelFile');
+        if(!fileInput.files[0]) return alert("Please select a file first.");
+
+        let formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        document.getElementById('uploadMsg').innerText = "Processing... please wait.";
+        document.getElementById('uploadMsg').className = "mt-2 small fw-bold text-primary";
+
+        try {
+            let res = await fetch('/upload', { method: 'POST', body: formData });
+            let result = await res.json();
+
+            let msgEl = document.getElementById('uploadMsg');
+            msgEl.innerText = result.message;
+            msgEl.className = result.success ? "mt-2 small fw-bold text-success" : "mt-2 small fw-bold text-danger";
+
+            if(result.success) loadPage(1); // Refresh table
+        } catch (e) {
+            alert("Upload failed: " + e);
+        }
+    }
+
+    // --- 4. ASSIGN & BOX LOGIC ---
+    async function checkLimitAndAssign() {
+        let type = currentData.box_type;
+        let res = await fetch(`/get_active_box?type=${type}`);
+        let box = await res.json();
+
+        const limitModal = new bootstrap.Modal(document.getElementById('limitModal'));
+
+        // Case A: No box exists for this type
+        if(box.error) {
+            document.getElementById('limitTitle').innerText = "Initialize Box";
+            document.getElementById('limitMsg').innerText = `No active box found for type "${type}". Create the first one?`;
+            document.getElementById('nextBoxName').innerText = type + "1";
+            limitModal.show();
+            return;
+        }
+
+        // Case B: Box is Full (>= 400)
+        if(box.item_count >= 400) {
+            let next = box.current_sequence + 1;
+            document.getElementById('limitTitle').innerText = "Box Capacity Reached";
+            document.getElementById('limitMsg').innerText = `Box ${box.current_box_name} has 400 items.`;
+            document.getElementById('nextBoxName').innerText = type + next;
+            limitModal.show();
+        } else {
+            // Case C: Available Space
+            document.getElementById('inp_box').value = box.current_box_name;
+            document.getElementById('inp_dok').value = box.current_dok_id;
+
+            document.getElementById('btnAssign').classList.add('d-none');
+            document.getElementById('btnSave').classList.remove('d-none');
+        }
+    }
+
+    async function confirmNewBox() {
+        let newDok = document.getElementById('newDokInput').value;
+        if(!newDok) return alert("Please enter the DOK ID (from the barcode/label).");
+
+        let res = await fetch('/create_new_box', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ box_type: currentData.box_type, new_dok_id: newDok })
+        });
+
+        if((await res.json()).success) {
+            const modalEl = document.getElementById('limitModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+            checkLimitAndAssign(); // Retry assignment
+        }
+    }
+
+    async function saveToDb() {
+        // 1. Get values for display
+        const boxName = document.getElementById('inp_box').value;
+        const dokId = document.getElementById('inp_dok').value;
+
+        // 2. Show the "Small Confirm Box" (SweetAlert)
+        const result = await Swal.fire({
+            title: 'Confirm Assignment?',
+            html: `Are you sure you want to assign this agreement to:<br><b>${boxName}</b>?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#198754', // Green for Yes
+            cancelButtonColor: '#6c757d', // Grey for No
+            confirmButtonText: 'Yes, Save it!',
+            cancelButtonText: 'Cancel'
+        });
+
+        // 3. If user clicked "Cancel", stop everything
+        if (!result.isConfirmed) return;
+
+        // 4. Proceed with Saving
+        try {
+            let res = await fetch('/assign_agreement', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    agreement_number: currentData.agreement_number,
+                    box_name: boxName,
+                    dok_id: dokId,
+                    box_type: currentData.box_type
+                })
+            });
+
+            let data = await res.json();
+
+            if(data.success) {
+                // 5. Show Success Message
+                await Swal.fire({
+                    title: 'Saved!',
+                    text: 'Agreement has been assigned successfully.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+                // Reset UI
+                document.getElementById('workArea').classList.add('d-none');
+                document.getElementById('searchBox').value = '';
+                document.getElementById('searchBox').focus();
+                loadPage(1); // Refresh table
+            } else {
+                Swal.fire('Error', 'Something went wrong saving data.', 'error');
+            }
+        } catch (error) {
+            Swal.fire('Error', 'Network error or server is down.', 'error');
+        }
+    }
+
+    // --- 5. AUTH LOGIC ---
+    async function performLogin() {
+        let u = document.getElementById('logUser').value;
+        let p = document.getElementById('logPass').value;
+        let res = await fetch('/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: u, password: p})
+        });
+        if((await res.json()).success) location.reload();
+        else alert("Incorrect credentials.");
+    }
+</script>
+
+</body>
+</html>
