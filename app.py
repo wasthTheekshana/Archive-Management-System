@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect
 
 app = Flask(__name__)
 # Security: Change this to a random string for production
-app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+app.secret_key = os.environ.get('SECRET_KEY', 'default-dev-key')
 
 # --- CONFIGURATION ---
 
@@ -19,7 +19,7 @@ if not DATABASE_URL:
     # ⚠️ IMPORTANT: REPLACE [YOUR_REAL_PASSWORD_HERE] WITH YOUR ACTUAL DB PASSWORD
     DATABASE_URL = "postgresql://postgres.reyfmcofftatzkmqmjkz:bLacDxgp5Si1SwJF@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
 
-
+print(f"🔌 CONNECTING TO: {DATABASE_URL}")
 # --- DATABASE CONNECTION ---
 def get_db_connection():
     try:
