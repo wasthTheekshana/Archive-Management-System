@@ -352,11 +352,11 @@
             return;
         }
 
-        // Case B: Box is Full (>= 400)
-        if(box.item_count >= 400) {
+        // Case B: Box is Full (>= 250)
+        if(box.item_count >= 250) {
             let next = box.current_sequence + 1;
             document.getElementById('limitTitle').innerText = "Box Capacity Reached";
-            document.getElementById('limitMsg').innerText = `Box ${box.current_box_name} has 400 items.`;
+            document.getElementById('limitMsg').innerText = `Box ${box.current_box_name} has 250 items.`;
             document.getElementById('nextBoxName').innerText = type + next;
             limitModal.show();
         } else {

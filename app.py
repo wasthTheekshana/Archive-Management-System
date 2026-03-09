@@ -264,7 +264,17 @@ def download_archived():
         cursor.close()
         conn.close()
 
-    df = pd.DataFrame(rows, columns=['ID', 'Agreement Number', 'Category', 'Box Type', 'Status', 'Assigned Box Name', 'Assigned DOK ID'])
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        df = df.rename(columns={
+            'id': 'ID',
+            'agreement_number': 'Agreement Number',
+            'category': 'Category',
+            'box_type': 'Box Type',
+            'status': 'Status',
+            'assigned_box_name': 'Assigned Box Name',
+            'assigned_dok_id': 'Assigned DOK ID'
+        })
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Archived')
