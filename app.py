@@ -256,25 +256,27 @@ def download_archived():
     if not conn:
         return jsonify({'error': 'DB Connection Failed'}), 500
 
+    col_map = {
+        'id': 'ID',
+        'agreement_number': 'Agreement Number',
+        'category': 'Category',
+        'box_type': 'Box Type',
+        'status': 'Status',
+        'assigned_box_name': 'Assigned Box Name',
+        'assigned_dok_id': 'Assigned DOK ID'
+    }
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT id, agreement_number, category, box_type, status, assigned_box_name, assigned_dok_id FROM agreements WHERE status = 'Archived' ORDER BY assigned_box_name, id")
+        cursor.execute("SELECT id, agreement_number, category, box_type, status, assigned_box_name, assigned_dok_id FROM agreements WHERE LOWER(status) = 'archived' ORDER BY assigned_box_name, id")
         rows = cursor.fetchall()
     finally:
         cursor.close()
         conn.close()
 
-    df = pd.DataFrame(rows)
-    if not df.empty:
-        df = df.rename(columns={
-            'id': 'ID',
-            'agreement_number': 'Agreement Number',
-            'category': 'Category',
-            'box_type': 'Box Type',
-            'status': 'Status',
-            'assigned_box_name': 'Assigned Box Name',
-            'assigned_dok_id': 'Assigned DOK ID'
-        })
+    if rows:
+        df = pd.DataFrame(rows).rename(columns=col_map)
+    else:
+        df = pd.DataFrame(columns=list(col_map.values()))
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Archived')

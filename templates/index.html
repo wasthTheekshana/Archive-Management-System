@@ -85,7 +85,7 @@
 
                     <div class="input-group input-group-lg mb-3">
                         <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
-                        <input type="text" id="searchBox" class="form-control border-start-0" placeholder="Enter full or partial number..." onkeydown="if(event.key==='Enter') searchAgreement()">
+                        <input type="text" id="searchBox" class="form-control border-start-0" placeholder="Enter full or partial number...">
                         <button class="btn btn-primary" onclick="searchAgreement()">Search</button>
                     </div>
                     <p class="text-muted small mb-4">Tip: Enter partial numbers like "46781" to find "LF/46781/..."</p>
@@ -265,9 +265,14 @@
     // Initial Load
     document.addEventListener('DOMContentLoaded', () => {
         loadPage(1);
+
         document.getElementById('tableSearch').addEventListener('input', () => {
             clearTimeout(searchDebounceTimer);
             searchDebounceTimer = setTimeout(() => loadPage(1), 300);
+        });
+
+        document.getElementById('searchBox').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') searchAgreement();
         });
     });
 
