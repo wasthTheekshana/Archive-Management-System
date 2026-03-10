@@ -344,9 +344,11 @@ def init_db_route():
         """)
         
         # 1b. Add archived_date column if not exists
-        cursor.execute("""
-        ALTER TABLE agreements ADD COLUMN IF NOT EXISTS archived_date DATE
-        """)
+        try:
+            cursor.execute("ALTER TABLE agreements ADD COLUMN archived_date DATE")
+        except mysql.connector.Error as e:
+            if e.errno != 1060:  # 1060 = Duplicate column, safe to ignore
+                raise
 
         # 2. Create Active Boxes Table
         cursor.execute("""
