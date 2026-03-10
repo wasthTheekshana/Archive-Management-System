@@ -240,7 +240,7 @@ def assign_agreement():
     
     cursor = conn.cursor()
     try:
-        cursor.execute('UPDATE agreements SET assigned_box_name = %s, assigned_dok_id = %s, status = "Archived" WHERE agreement_number = %s', (data['box_name'], data['dok_id'], data['agreement_number']))
+        cursor.execute('UPDATE agreements SET assigned_box_name = %s, assigned_dok_id = %s, status = "Archived", archived_date = CURDATE() WHERE agreement_number = %s', (data['box_name'], data['dok_id'], data['agreement_number']))
         cursor.execute('UPDATE active_boxes SET item_count = item_count + 1 WHERE box_type = %s', (data['box_type'],))
         conn.commit()
         return jsonify({'success': True})
@@ -284,6 +284,42 @@ def download_archived():
     return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name='archived_agreements.xlsx')
 
+@app.route('/download/daily_log')
+def download_daily_log():
+    if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'DB Connection Failed'}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT archived_date AS `Date`, COUNT(*) AS `Total Archived`
+            FROM agreements
+            WHERE LOWER(status) = 'archived' AND archived_date IS NOT NULL
+            GROUP BY archived_date
+            ORDER BY archived_date DESC
+        """)
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+    if rows:
+        df = pd.DataFrame(rows)
+        df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
+    else:
+        df = pd.DataFrame(columns=['Date', 'Total Archived'])
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Daily Activity')
+    output.seek(0)
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name='daily_activity_log.xlsx')
+
 # --- AZURE INITIALIZATION ROUTE (RUN THIS ONCE) ---
 @app.route('/init_db')
 def init_db_route():
@@ -307,6 +343,11 @@ def init_db_route():
         )
         """)
         
+        # 1b. Add archived_date column if not exists
+        cursor.execute("""
+        ALTER TABLE agreements ADD COLUMN IF NOT EXISTS archived_date DATE
+        """)
+
         # 2. Create Active Boxes Table
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS active_boxes (
